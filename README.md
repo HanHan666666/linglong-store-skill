@@ -15,8 +15,7 @@
 把本仓库里的 skill 目录复制到你的 Agent 技能目录：
 
 ```bash
-mkdir -p <你的项目>/.agents/skills
-cp -r .agents/skills/linglong-store <你的项目>/.agents/skills/
+npx skills add HanHan666666/linglong-store-skill
 ```
 
 复制完成后，重启或重新加载你的 Agent 会话即可。
