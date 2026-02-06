@@ -42,6 +42,7 @@ version: 0.1.0
 ### 1) 搜索与发现
 
 - 解析用户关键词、分类、语言、架构、分页等条件。
+- 调用 `/visit/getSearchAppList` 时必须传 `arch` 与 `repoName`，否则会返回空列表；默认 `arch=x86_64`、`repoName=stable`。
 - 若用户指定“分类/类目”：
   - 调用分类列表接口（`/web/categories` 或 `/visit/getDisCategoryList`）获取 `categoryId`。
   - 可选调用 `/web/getCategoryAppCount` 获取分类应用数量并提示分页。

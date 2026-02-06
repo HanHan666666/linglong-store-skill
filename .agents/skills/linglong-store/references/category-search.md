@@ -2,6 +2,8 @@
 
 脚本路径：`scripts/linglong_category_search.py`
 
+Python API 路径：`scripts/linglong_store_api.py`
+
 该脚本对齐 GUI 商店的调用方式：
 
 - 分类默认走 `/visit/getDisCategoryList`。
@@ -47,6 +49,19 @@ python3 .agents/skills/linglong-store/scripts/linglong_category_search.py search
 python3 .agents/skills/linglong-store/scripts/linglong_category_search.py search \
   --name "WPS" --category-name "办公" --page-size 10
 ```
+
+## Python API 用法
+
+```python
+from linglong_store_api import LinglongStoreClient
+
+client = LinglongStoreClient()
+apps = client.search_apps_simple(name="我的世界", page_size=10)
+for app in apps:
+    print(app.app_id, app.name, app.version)
+```
+
+完整文档见 [references/python-api.md](python-api.md)。
 
 ## 关键参数
 

@@ -13,126 +13,21 @@ Uses curl to keep zero runtime dependencies.
 
 import argparse
 import json
-import subprocess
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
-
-BASE_URL = "https://storeapi.linyaps.org.cn"
-DEFAULT_ARCH = "x86_64"
-DEFAULT_LANG = "zh"
-DEFAULT_REPO = "stable"
-
-
-def run_curl(args: List[str], data: Optional[str] = None) -> Dict[str, Any]:
-    cmd = ["curl", "-sS"] + args
-    if data is not None:
-        cmd.extend(["-H", "Content-Type: application/json", "-d", data])
-    result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or "curl failed")
-    try:
-        return json.loads(result.stdout)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError("failed to parse response as JSON") from exc
-
-
-def get_categories(lang: str, arch: str, use_web: bool) -> List[Dict[str, Any]]:
-    if use_web:
-        url = f"{BASE_URL}/web/categories?lang={lang}&arch={arch}"
-        data = run_curl(["-X", "GET", url])
-        return data.get("data", []) or []
-    url = f"{BASE_URL}/visit/getDisCategoryList"
-    data = run_curl(["-X", "GET", url])
-    return data.get("data", []) or []
-
-
-def get_category_app_count(category_id: str) -> int:
-    url = f"{BASE_URL}/web/getCategoryAppCount?categoryId={category_id}"
-    result = subprocess.run(["curl", "-sS", "-X", "GET", url], capture_output=True, text=True, encoding="utf-8")
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or "curl failed")
-    try:
-        data = json.loads(result.stdout)
-        return int(data.get("data", 0) or 0)
-    except json.JSONDecodeError:
-        raw = result.stdout.strip()
-        if raw.isdigit():
-            return int(raw)
-        raise RuntimeError("failed to parse category count response")
-
-
-def search_apps(payload: Dict[str, Any]) -> Dict[str, Any]:
-    url = f"{BASE_URL}/visit/getSearchAppList"
-    return run_curl(["-X", "POST", url], data=json.dumps(payload, ensure_ascii=False))
-
-
-def build_search_payload(args: argparse.Namespace, category_id: Optional[str]) -> Dict[str, Any]:
-    payload: Dict[str, Any] = {
-        "pageNo": args.page_no,
-        "pageSize": args.page_size,
-        "arch": args.arch,
-        "lan": args.lang,
-    }
-    if args.repo_name:
-        payload["repoName"] = args.repo_name
-    if args.name:
-        payload["name"] = args.name
-    if args.zh_name:
-        payload["zhName"] = args.zh_name
-    if category_id:
-        payload["categoryId"] = category_id
-    if args.module:
-        payload["module"] = args.module
-    if args.version:
-        payload["version"] = args.version
-    if args.sort:
-        payload["sort"] = args.sort
-    if args.order:
-        payload["order"] = args.order
-    return payload
-
-
-def select_category_id(categories: List[Dict[str, Any]], category_name: Optional[str]) -> Optional[str]:
-    if not category_name:
-        return None
-    matches = [c for c in categories if str(c.get("categoryName", "")).lower() == category_name.lower()]
-    if len(matches) == 1:
-        return matches[0].get("categoryId")
-    if not matches:
-        raise RuntimeError(f"category name not found: {category_name}")
-    names = ", ".join(str(c.get("categoryName")) for c in matches)
-    raise RuntimeError(f"category name ambiguous, matches: {names}")
-
-
-def format_app_list(items: List[Dict[str, Any]], limit: Optional[int]) -> List[Dict[str, Any]]:
-    rows = []
-    for item in items[: limit or len(items)]:
-        rows.append({
-            "appId": item.get("appId"),
-            "name": item.get("zhName") or item.get("name"),
-            "version": item.get("version"),
-            "arch": item.get("arch"),
-            "description": item.get("description"),
-            "repoName": item.get("repoName"),
-        })
-    return rows
-
-
-def extract_app_items(response: Dict[str, Any]) -> List[Dict[str, Any]]:
-    data = response.get("data") or {}
-    if isinstance(data, dict):
-        if "list" in data and isinstance(data.get("list"), list):
-            return data.get("list") or []
-        if "records" in data and isinstance(data.get("records"), list):
-            return data.get("records") or []
-    if isinstance(data, list):
-        return data
-    return []
+from linglong_store_api import (
+    DEFAULT_ARCH,
+    DEFAULT_LANG,
+    DEFAULT_REPO,
+    LinglongStoreClient,
+    summaries_to_dicts,
+)
 
 
 def cmd_categories(args: argparse.Namespace) -> int:
-    categories = get_categories(args.lang, args.arch, args.web)
+    client = LinglongStoreClient(arch=args.arch, lang=args.lang, repo_name=args.repo_name)
+    categories = client.get_categories(use_web=args.web)
     if args.raw:
         print(json.dumps(categories, ensure_ascii=False, indent=2))
         return 0
@@ -151,37 +46,67 @@ def cmd_categories(args: argparse.Namespace) -> int:
 
 def cmd_category_apps(args: argparse.Namespace) -> int:
     use_web = resolve_use_web_categories(args)
-    categories = get_categories(args.lang, args.arch, use_web)
-    category_id = args.category_id or select_category_id(categories, args.category_name)
+    client = LinglongStoreClient(arch=args.arch, lang=args.lang, repo_name=args.repo_name)
+    category_id = client.resolve_category_id(
+        category_id=args.category_id,
+        category_name=args.category_name,
+        use_web_categories=use_web,
+    )
     if not category_id:
         raise RuntimeError("categoryId is required")
     if args.show_count:
-        count = get_category_app_count(category_id)
+        count = client.get_category_app_count(category_id)
         print(json.dumps({"categoryId": category_id, "count": count}, ensure_ascii=False, indent=2))
-    payload = build_search_payload(args, category_id)
-    data = search_apps(payload)
+    data = client.search_apps_simple(
+        name=args.name,
+        zh_name=args.zh_name,
+        category_id=category_id,
+        page_no=args.page_no,
+        page_size=args.page_size,
+        module=args.module,
+        version=args.version,
+        sort=args.sort,
+        order=args.order,
+        raw=args.raw,
+    )
     if args.raw:
         print(json.dumps(data, ensure_ascii=False, indent=2))
         return 0
-    items = extract_app_items(data)
-    rows = format_app_list(items, args.limit)
+    rows = summaries_to_dicts(data)
+    if args.limit:
+        rows = rows[: args.limit]
     print(json.dumps(rows, ensure_ascii=False, indent=2))
     return 0
 
 
 def cmd_search(args: argparse.Namespace) -> int:
+    use_web = resolve_use_web_categories(args)
+    client = LinglongStoreClient(arch=args.arch, lang=args.lang, repo_name=args.repo_name)
     category_id = None
     if args.category_id or args.category_name:
-        use_web = resolve_use_web_categories(args)
-        categories = get_categories(args.lang, args.arch, use_web)
-        category_id = args.category_id or select_category_id(categories, args.category_name)
-    payload = build_search_payload(args, category_id)
-    data = search_apps(payload)
+        category_id = client.resolve_category_id(
+            category_id=args.category_id,
+            category_name=args.category_name,
+            use_web_categories=use_web,
+        )
+    data = client.search_apps_simple(
+        name=args.name,
+        zh_name=args.zh_name,
+        category_id=category_id,
+        page_no=args.page_no,
+        page_size=args.page_size,
+        module=args.module,
+        version=args.version,
+        sort=args.sort,
+        order=args.order,
+        raw=args.raw,
+    )
     if args.raw:
         print(json.dumps(data, ensure_ascii=False, indent=2))
         return 0
-    items = extract_app_items(data)
-    rows = format_app_list(items, args.limit)
+    rows = summaries_to_dicts(data)
+    if args.limit:
+        rows = rows[: args.limit]
     print(json.dumps(rows, ensure_ascii=False, indent=2))
     return 0
 
