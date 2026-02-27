@@ -22,7 +22,7 @@ version: 0.1.0
 
 ## 操作原则
 
-- **优先使用 Python 脚本搜索应用**：搜索应用时必须优先调用 `scripts/linglong_store_api.py` 脚本，而非直接调用 curl 或其他方式。
+- **优先使用 Python 脚本搜索应用**：搜索应用时必须优先调用 `scripts/linglong_store_api.py` 脚本。
 - 默认 `arch` 为 `x86_64`，用户明确指定时再覆盖。
 - 多版本、多架构、多模块存在时，先展示并要求用户确认。
 - 安装或卸载完成后，调用统计上报接口。
@@ -32,7 +32,7 @@ version: 0.1.0
 
 - 优先读取 GUI 商店对 `/app/saveInstalledRecord` 的字段定义并保持一致。
 - 构造请求体时使用最小必要字段起步，再补齐 GUI 商店的扩展字段。
-- 统一封装 `curl` 调用，确保输出可解析并保留 HTTP 状态码与响应体。
+- 统一封装 HTTP 调用，确保输出可解析并保留状态码与响应体。
 - `ll-cli` 命令输出需要截取关键失败摘要并保留原始日志用于排障。
 - 交互流程中如需展示结果列表，固定输出 `appId` 供用户确认。
 
@@ -66,15 +66,31 @@ python3 .agents/skills/linglong-store/scripts/linglong_store_api.py <应用名�
 1. 解析用户关键词、分类等条件。
 2. 调用 Python 脚本执行搜索。
 3. 返回候选列表后，展示：名称、`appId`、版本、架构、描述。
-4. 若无结果，提示更换关键词或减少筛选条件。
+4. 每次展示搜索结果后，都要询问用户是否需要展示目标应用截图。
+5. 若无结果，提示更换关键词或减少筛选条件。
 
 参考：`references/api.md` 的 `/visit/getSearchAppList`。
 
 ### 2) 查看应用详情
 
-- 用户给出 `appId` 或从搜索结果中选择。
-- 调用详情接口（优先新版 `/app/getAppDetail`）。
-- 返回关键字段：截图、标签、描述、版本、架构、运行时等。
+**优先使用 Python 脚本获取详情（推荐）：**
+
+```bash
+# 获取应用完整详情
+python3 .agents/skills/linglong-store/scripts/linglong_store_api.py --detail <appId>
+
+# 仅获取应用截图链接
+python3 .agents/skills/linglong-store/scripts/linglong_store_api.py --detail <appId> --screenshots
+
+# 输出 JSON 格式
+python3 .agents/skills/linglong-store/scripts/linglong_store_api.py --detail <appId> --json
+```
+
+详情输出包含：`appId`、名称、版本、架构、分类、开发者、大小、图标、描述、截图列表。
+
+**截图输出规范：**
+- 截图必须以 Markdown 图片格式展示：`![截图](URL)`
+- 若无截图，提示"该应用暂无截图"
 
 参考：`references/api.md` 的 `/app/getAppDetail`。
 
@@ -127,6 +143,7 @@ python3 .agents/skills/linglong-store/scripts/linglong_update_checker.py --actio
 
 - 明确告知正在执行的步骤（搜索、安装、检查更新）。
 - 多选项时引导用户用序号选择，避免模糊确认。
+- 用户每次查找应用后都要主动询问："需不需要我展示一下这个应用的截图？"
 - 失败时给出可执行的下一步（重试、切换架构、减少筛选）。
 
 ## 错误处理
@@ -140,14 +157,17 @@ python3 .agents/skills/linglong-store/scripts/linglong_update_checker.py --actio
 ## 自检清单
 
 - 搜索应用时优先使用 `scripts/linglong_store_api.py` Python 脚本。
+- 每次搜索后都已询问用户是否需要展示截图。
 - 每次安装、卸载后都上报统计记录。
 - 安装失败时输出错误摘要并给出替代方案。
 - 更新检查接口失败时提供 `ll-cli upgrade` 退化方案。
 
 ## 工具脚本
 
-- **`scripts/linglong_store_api.py`** - 应用搜索脚本（推荐优先使用）
-  - 用法：`python3 scripts/linglong_store_api.py <应用名称> [--json] [--page-size N]`
+- **`scripts/linglong_store_api.py`** - 应用搜索与详情脚本（推荐优先使用）
+  - 搜索：`python3 scripts/linglong_store_api.py <应用名称> [--json] [--page-size N]`
+  - 详情：`python3 scripts/linglong_store_api.py --detail <appId>`
+  - 截图：`python3 scripts/linglong_store_api.py --detail <appId> --screenshots`
   - 自动处理 `arch`、`repoName`、`lang` 等参数，零配置即可搜索
 - `scripts/linglong_update_checker.py` - 更新检查脚本
 - `scripts/linglong_category_search.py` - 分类搜索脚本

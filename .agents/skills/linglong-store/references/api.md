@@ -9,12 +9,6 @@ Base URL: https://storeapi.linyaps.org.cn/
 - Query: lang, arch
 - 返回：categoryId, categoryName, icon, categoryCount
 
-curl 模板：
-
-```bash
-curl -sS -X GET "https://storeapi.linyaps.org.cn/web/categories?lang=zh&arch=x86_64"
-```
-
 ### 获取分类列表（App 侧）
 - GET /visit/getDisCategoryList
 - 返回：categoryId, categoryName, icon, count
@@ -27,41 +21,20 @@ curl -sS -X GET "https://storeapi.linyaps.org.cn/web/categories?lang=zh&arch=x86
 - POST /visit/getSearchAppList
 - Body: AppMainVO
 - 关键字段：pageNo, pageSize, appId, name, zhName, categoryId, arch, module, version, sort, order, lan
-
-curl 模板：
-
-```bash
-curl -sS -X POST "https://storeapi.linyaps.org.cn/visit/getSearchAppList" \
-  -H "Content-Type: application/json" \
-  -d '{"pageNo":1,"pageSize":20,"name":"WPS","arch":"x86_64","lan":"zh"}'
-```
+- 搜索调用请使用 `scripts/linglong_store_api.py`。
 
 ### 版本列表
 - POST /visit/getSearchAppVersionList
 - Body: AppMainVO（appId 过滤）
-
-curl 模板：
-
-```bash
-curl -sS -X POST "https://storeapi.linyaps.org.cn/visit/getSearchAppVersionList" \
-  -H "Content-Type: application/json" \
-  -d '{"pageNo":1,"pageSize":20,"appId":"cn.wps.wps-office","arch":"x86_64"}'
-```
+- 版本列表查询与搜索一致，统一通过 `scripts/linglong_store_api.py` 处理。
 
 ## 应用详情
 
 ### 新版详情
 - POST /app/getAppDetail
 - Body: AppDetailSearchBO[]
-- 关键字段：appId, arch, lang
-
-curl 模板：
-
-```bash
-curl -sS -X POST "https://storeapi.linyaps.org.cn/app/getAppDetail" \
-  -H "Content-Type: application/json" \
-  -d '[{"appId":"cn.wps.wps-office","arch":"x86_64","lang":"zh"}]'
-```
+- 关键字段：appId, arch
+- 详情调用请使用 `scripts/linglong_store_api.py`。
 
 ### 兼容详情
 - POST /visit/getAppDetails

@@ -2,7 +2,7 @@
 
 ## 通用请求约定
 
-- 使用 `curl -sS` 并保留 HTTP 状态码与响应体。
+- 优先使用 `scripts/linglong_store_api.py` 封装搜索/详情请求。
 - 默认 `arch=x86_64`，`lang/lan=zh`。
 - 请求体字段为空时不要传空字符串，直接省略。
 - 列表类接口使用 `pageNo/pageSize` 控制分页。
@@ -10,28 +10,25 @@
 ## 搜索与列表流程
 
 1. 解析用户输入，构造 `AppMainVO`。
-2. 调用 `/visit/getSearchAppList` 获取候选。
+2. 调用 `scripts/linglong_store_api.py` 获取候选。
 3. 仅展示必要字段并引导用户选择 `appId`。
+4. 每次展示搜索结果后，主动询问用户是否需要展示该应用截图。
 
 示例：
 
 ```bash
-curl -sS -X POST "https://storeapi.linyaps.org.cn/visit/getSearchAppList" \
-  -H "Content-Type: application/json" \
-  -d '{"pageNo":1,"pageSize":10,"name":"WPS","arch":"x86_64","lan":"zh"}'
+python3 .agents/skills/linglong-store/scripts/linglong_store_api.py WPS --page-size 10
 ```
 
 ## 详情流程
 
-1. 使用 `appId` 组装 `AppDetailSearchBO[]`。
-2. 优先调用 `/app/getAppDetail`。
+1. 使用 `appId` 调用 `scripts/linglong_store_api.py --detail <appId>`。
+2. 从脚本输出中提取截图、描述、版本、架构等详情字段。
 
 示例：
 
 ```bash
-curl -sS -X POST "https://storeapi.linyaps.org.cn/app/getAppDetail" \
-  -H "Content-Type: application/json" \
-  -d '[{"appId":"cn.wps.wps-office","arch":"x86_64","lang":"zh"}]'
+python3 .agents/skills/linglong-store/scripts/linglong_store_api.py --detail cn.wps.wps-office
 ```
 
 ## 安装流程

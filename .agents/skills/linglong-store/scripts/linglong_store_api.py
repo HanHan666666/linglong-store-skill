@@ -29,6 +29,26 @@ class AppSummary:
     arch: Optional[str]
     description: Optional[str]
     repo_name: Optional[str]
+    icon: Optional[str] = None
+
+
+@dataclass
+class AppDetail:
+    app_id: Optional[str]
+    name: Optional[str]
+    version: Optional[str]
+    arch: Optional[str]
+    description: Optional[str]
+    repo_name: Optional[str]
+    icon: Optional[str] = None
+    screenshots: List[str] = None
+    size: Optional[str] = None
+    developer: Optional[str] = None
+    category: Optional[str] = None
+
+    def __post_init__(self):
+        if self.screenshots is None:
+            self.screenshots = []
 
 
 def _run_curl(args: List[str], data: Optional[str] = None) -> Dict[str, Any]:
@@ -67,6 +87,7 @@ def _format_app_list(items: Iterable[Dict[str, Any]]) -> List[AppSummary]:
                 arch=item.get("arch"),
                 description=item.get("description"),
                 repo_name=item.get("repoName"),
+                icon=item.get("icon"),
             )
         )
     return rows
@@ -231,6 +252,51 @@ class LinglongStoreClient:
         items = _extract_app_items(data)
         return _format_app_list(items)
 
+    def get_app_detail(self, app_id: str, raw: bool = False) -> AppDetail | Dict[str, Any]:
+        """获取应用详情，包括截图列表"""
+        url = f"{self.base_url}/app/getAppDetail"
+        # 与 GUI 商店保持一致：不传 lang，避免服务端返回空截图列表。
+        payload = [{"appId": app_id, "arch": self.arch}]
+        response = _run_curl(["-X", "POST", url], data=json.dumps(payload, ensure_ascii=False))
+        if raw:
+            return response
+        
+        data = response.get("data", {})
+        app_list = data.get(app_id, [])
+        if not app_list:
+            raise RuntimeError(f"未找到应用: {app_id}")
+        
+        app = app_list[0]
+        screenshots = []
+        for shot in (app.get("appScreenshotList") or []):
+            if shot.get("screenshotKey"):
+                screenshots.append(shot["screenshotKey"])
+        
+        return AppDetail(
+            app_id=app.get("appId"),
+            name=app.get("zhName") or app.get("name"),
+            version=app.get("version"),
+            arch=app.get("arch"),
+            description=app.get("description"),
+            repo_name=app.get("repoName"),
+            icon=app.get("icon"),
+            screenshots=screenshots,
+            size=app.get("size"),
+            developer=app.get("devName"),
+            category=app.get("categoryName"),
+        )
+
+
+def get_app_detail_api(
+    app_id: str,
+    arch: str = DEFAULT_ARCH,
+    lang: str = DEFAULT_LANG,
+    raw: bool = False,
+) -> AppDetail | Dict[str, Any]:
+    """获取应用详情的便捷函数"""
+    client = LinglongStoreClient(arch=arch, lang=lang)
+    return client.get_app_detail(app_id, raw=raw)
+
 
 def search_apps_api(
     *,
@@ -280,10 +346,12 @@ def _main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  python linglong_store_api.py open-tv
+  python linglong_store_api.py clash
   python linglong_store_api.py WPS --page-size 10
   python linglong_store_api.py 微信 --json
   python linglong_store_api.py 浏览器 --arch arm64
+  python linglong_store_api.py --detail cn.wps.wps-office
+  python linglong_store_api.py --detail cn.wps.wps-office --screenshots
         """,
     )
     parser.add_argument("name", nargs="?", help="搜索关键词（应用名称）")
@@ -293,13 +361,70 @@ def _main() -> None:
     parser.add_argument("--page-size", type=int, default=20, help="每页数量 (默认: 20)")
     parser.add_argument("--json", action="store_true", help="输出原始 JSON 格式")
     parser.add_argument("--category", dest="category_name", help="分类名称筛选")
+    parser.add_argument("--detail", dest="detail_app_id", help="获取应用详情（appId）")
+    parser.add_argument("--screenshots", action="store_true", help="仅输出应用截图链接（需配合 --detail 使用）")
 
     args = parser.parse_args()
 
-    if not args.name and not args.category_name:
-        parser.error("请提供搜索关键词或分类名称")
-
     try:
+        # 获取应用详情模式
+        if args.detail_app_id:
+            detail = get_app_detail_api(
+                app_id=args.detail_app_id,
+                arch=args.arch,
+                lang=args.lang,
+                raw=args.json,
+            )
+            
+            if args.json:
+                if isinstance(detail, dict):
+                    print(json.dumps(detail, ensure_ascii=False, indent=2))
+                else:
+                    print(json.dumps({
+                        "appId": detail.app_id,
+                        "name": detail.name,
+                        "version": detail.version,
+                        "arch": detail.arch,
+                        "description": detail.description,
+                        "icon": detail.icon,
+                        "screenshots": detail.screenshots,
+                        "size": detail.size,
+                        "developer": detail.developer,
+                        "category": detail.category,
+                    }, ensure_ascii=False, indent=2))
+                return
+            
+            if args.screenshots:
+                if detail.screenshots:
+                    print(f"{detail.name} 的截图:")
+                    for i, url in enumerate(detail.screenshots, 1):
+                        print(f"  {i}. {url}")
+                else:
+                    print("该应用暂无截图")
+                return
+            
+            # 输出完整详情
+            print(f"应用ID: {detail.app_id}")
+            print(f"名称: {detail.name}")
+            print(f"版本: {detail.version}")
+            print(f"架构: {detail.arch}")
+            print(f"分类: {detail.category}")
+            print(f"开发者: {detail.developer}")
+            print(f"大小: {detail.size}")
+            if detail.icon:
+                print(f"图标: {detail.icon}")
+            if detail.description:
+                print(f"描述: {detail.description}")
+            if detail.screenshots:
+                print(f"\n截图 ({len(detail.screenshots)} 张):")
+                for i, url in enumerate(detail.screenshots, 1):
+                    print(f"  {i}. {url}")
+            return
+
+        # 搜索模式
+        if not args.name and not args.category_name:
+            parser.error("请提供搜索关键词或分类名称")
+
         result = search_apps_api(
             name=args.name,
             category_name=args.category_name,
@@ -323,6 +448,8 @@ def _main() -> None:
                 print(f"   名称: {app.name}")
                 print(f"   版本: {app.version}")
                 print(f"   架构: {app.arch}")
+                if app.icon:
+                    print(f"   图标: {app.icon}")
                 if app.description:
                     desc = app.description[:80] + "..." if len(app.description) > 80 else app.description
                     print(f"   描述: {desc}")

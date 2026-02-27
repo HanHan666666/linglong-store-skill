@@ -1,7 +1,6 @@
 # Python API - Linglong Store
 
-This module wraps the store HTTP endpoints with a small Python client that uses
-curl (no extra dependencies).
+This module wraps the store HTTP endpoints with a small Python client.
 
 Module path: `scripts/linglong_store_api.py`
 
@@ -117,7 +116,7 @@ Fields:
 
 ## Error Handling
 
-- Raises `RuntimeError` when curl fails or JSON parsing fails.
+- Raises `RuntimeError` when request execution or JSON parsing fails.
 - Raises `RuntimeError` when `category_name` is ambiguous or not found.
 
 ## Notes
