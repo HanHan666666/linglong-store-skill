@@ -22,8 +22,7 @@ version: 0.1.0
 
 ## 操作原则
 
-- 使用 Web API 获取在线应用列表与搜索结果，禁止使用 `ll-cli search`。
-- 所有后端接口尽量用 `curl` 调用，保持 0 依赖。
+- **优先使用 Python 脚本搜索应用**：搜索应用时必须优先调用 `scripts/linglong_store_api.py` 脚本，而非直接调用 curl 或其他方式。
 - 默认 `arch` 为 `x86_64`，用户明确指定时再覆盖。
 - 多版本、多架构、多模块存在时，先展示并要求用户确认。
 - 安装或卸载完成后，调用统计上报接口。
@@ -41,17 +40,35 @@ version: 0.1.0
 
 ### 1) 搜索与发现
 
-- 解析用户关键词、分类、语言、架构、分页等条件。
-- 调用 `/visit/getSearchAppList` 时必须传 `arch` 与 `repoName`，否则会返回空列表；默认 `arch=x86_64`、`repoName=stable`。
-- 若用户指定“分类/类目”：
-  - 调用分类列表接口（`/web/categories` 或 `/visit/getDisCategoryList`）获取 `categoryId`。
-  - 可选调用 `/web/getCategoryAppCount` 获取分类应用数量并提示分页。
-  - 使用 `categoryId` 作为过滤条件调用 `/visit/getSearchAppList`。
-- 若用户指定关键词：使用 `name/zhName` 作为条件调用 `/visit/getSearchAppList`。
-- 返回候选列表后，展示：名称、`appId`、版本、架构、描述。
-- 若无结果，提示更换关键词或减少筛选条件。
+**优先使用 Python 脚本进行搜索（推荐）：**
 
-参考：`references/api.md` 的 `/web/categories`、`/visit/getDisCategoryList`、`/web/getCategoryAppCount`、`/visit/getSearchAppList`。
+```bash
+# 基本搜索
+python3 .agents/skills/linglong-store/scripts/linglong_store_api.py <应用名称>
+
+# 指定每页数量
+python3 .agents/skills/linglong-store/scripts/linglong_store_api.py <应用名称> --page-size 10
+
+# 输出 JSON 格式（用于程序解析）
+python3 .agents/skills/linglong-store/scripts/linglong_store_api.py <应用名称> --json
+
+# 按分类筛选
+python3 .agents/skills/linglong-store/scripts/linglong_store_api.py --category "网络应用"
+
+# 指定架构
+python3 .agents/skills/linglong-store/scripts/linglong_store_api.py <应用名称> --arch arm64
+```
+
+脚本会自动处理 `arch`、`repoName`、`lang` 等必需参数，默认值为 `x86_64`、`stable`、`zh`。
+
+**搜索流程：**
+
+1. 解析用户关键词、分类等条件。
+2. 调用 Python 脚本执行搜索。
+3. 返回候选列表后，展示：名称、`appId`、版本、架构、描述。
+4. 若无结果，提示更换关键词或减少筛选条件。
+
+参考：`references/api.md` 的 `/visit/getSearchAppList`。
 
 ### 2) 查看应用详情
 
@@ -122,18 +139,18 @@ python3 .agents/skills/linglong-store/scripts/linglong_update_checker.py --actio
 
 ## 自检清单
 
-- 在线搜索与列表始终使用 Web API。
+- 搜索应用时优先使用 `scripts/linglong_store_api.py` Python 脚本。
 - 每次安装、卸载后都上报统计记录。
 - 安装失败时输出错误摘要并给出替代方案。
 - 更新检查接口失败时提供 `ll-cli upgrade` 退化方案。
-- 所有 API 调用使用 `curl`。
 
 ## 工具脚本
 
-- 更新检查脚本位于 `scripts/linglong_update_checker.py`。
-- 使用说明与模块导入方式见 `references/update-checker.md`。
-- 分类/搜索脚本位于 `scripts/linglong_category_search.py`。
-- 使用说明见 `references/category-search.md`。
+- **`scripts/linglong_store_api.py`** - 应用搜索脚本（推荐优先使用）
+  - 用法：`python3 scripts/linglong_store_api.py <应用名称> [--json] [--page-size N]`
+  - 自动处理 `arch`、`repoName`、`lang` 等参数，零配置即可搜索
+- `scripts/linglong_update_checker.py` - 更新检查脚本
+- `scripts/linglong_category_search.py` - 分类搜索脚本
 
 ## 附加资源
 
