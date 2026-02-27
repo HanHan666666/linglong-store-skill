@@ -269,3 +269,69 @@ def search_apps_api(
         order=order,
         raw=raw,
     )
+
+
+def _main() -> None:
+    """命令行入口：python linglong_store_api.py <应用名称> [--arch ARCH] [--repo REPO] [--page-size N] [--json]"""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="玲珑应用商店搜索工具",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例:
+  python linglong_store_api.py open-tv
+  python linglong_store_api.py WPS --page-size 10
+  python linglong_store_api.py 微信 --json
+  python linglong_store_api.py 浏览器 --arch arm64
+        """,
+    )
+    parser.add_argument("name", nargs="?", help="搜索关键词（应用名称）")
+    parser.add_argument("--arch", default=DEFAULT_ARCH, help=f"架构 (默认: {DEFAULT_ARCH})")
+    parser.add_argument("--repo", dest="repo_name", default=DEFAULT_REPO, help=f"仓库名 (默认: {DEFAULT_REPO})")
+    parser.add_argument("--lang", default=DEFAULT_LANG, help=f"语言 (默认: {DEFAULT_LANG})")
+    parser.add_argument("--page-size", type=int, default=20, help="每页数量 (默认: 20)")
+    parser.add_argument("--json", action="store_true", help="输出原始 JSON 格式")
+    parser.add_argument("--category", dest="category_name", help="分类名称筛选")
+
+    args = parser.parse_args()
+
+    if not args.name and not args.category_name:
+        parser.error("请提供搜索关键词或分类名称")
+
+    try:
+        result = search_apps_api(
+            name=args.name,
+            category_name=args.category_name,
+            arch=args.arch,
+            lang=args.lang,
+            repo_name=args.repo_name,
+            page_size=args.page_size,
+            raw=args.json,
+        )
+
+        if args.json:
+            print(json.dumps(summaries_to_dicts(result) if isinstance(result, list) else result, ensure_ascii=False, indent=2))
+        else:
+            items = result if isinstance(result, list) else []
+            if not items:
+                print("未找到匹配的应用")
+                return
+            print(f"共找到 {len(items)} 个应用:\n")
+            for i, app in enumerate(items, 1):
+                print(f"{i}. {app.app_id}")
+                print(f"   名称: {app.name}")
+                print(f"   版本: {app.version}")
+                print(f"   架构: {app.arch}")
+                if app.description:
+                    desc = app.description[:80] + "..." if len(app.description) > 80 else app.description
+                    print(f"   描述: {desc}")
+                print()
+
+    except Exception as e:
+        print(f"错误: {e}")
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    _main()
