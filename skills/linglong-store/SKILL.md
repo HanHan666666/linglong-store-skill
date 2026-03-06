@@ -1,14 +1,14 @@
 ---
-name: 玲珑应用商店 Agent Skill
-description: This skill should be used when the user asks to "搜索应用", "查找应用", "安装应用", "卸载应用", "检查更新", "升级应用", "查看应用详情", "反馈问题", "应用商店" or mentions "ll-cli" with app install/update tasks.
+name: 玲珑应用商店社区版 Agent Skill
+description: 当用户提出“搜索应用”“查找应用”“安装应用”“卸载应用”“检查更新”“升级应用”“查看应用详情”“反馈问题”“应用商店”等需求，或提到使用玲珑包或者“ll-cli”执行应用安装/更新任务时，应使用此技能。
 version: 0.1.0
 ---
 
-# 玲珑应用商店 Agent Skill
+# 玲珑应用商店社区版 Agent Skill
 
 ## 目的与范围
 
-提供面向玲珑应用商店的完整操作流程与约束，覆盖在线应用搜索、应用详情、安装与升级、更新检查、统计上报与意见反馈。依赖 Web API 获取在线数据，依赖 `ll-cli` 完成安装与升级。
+提供面向玲珑应用商店的完整操作流程与约束，覆盖在线应用搜索、应用详情、安装与升级、更新检查、统计上报与意见反馈。依赖网络接口获取在线数据，依赖 `ll-cli` 完成安装与升级。
 
 ## 使用时机
 
@@ -26,12 +26,10 @@ version: 0.1.0
 - 默认 `arch` 为 `x86_64`，用户明确指定时再覆盖。
 - 多版本、多架构、多模块存在时，先展示并要求用户确认。
 - 安装或卸载完成后，调用统计上报接口。
-- 安装失败时记录 `ll-cli` 输出摘要，并参考 GUI 商店实现的错误映射或提示逻辑（路径：`/home/han/linglong-store/rust-linglong-store`）。
+- 安装失败时记录 `ll-cli` 输出摘要，并告诉用户可能的失败原因和下一步建议。
 
 ## 集成实现要点
 
-- 优先读取 GUI 商店对 `/app/saveInstalledRecord` 的字段定义并保持一致。
-- 构造请求体时使用最小必要字段起步，再补齐 GUI 商店的扩展字段。
 - 统一封装 HTTP 调用，确保输出可解析并保留状态码与响应体。
 - `ll-cli` 命令输出需要截取关键失败摘要并保留原始日志用于排障。
 - 交互流程中如需展示结果列表，固定输出 `appId` 供用户确认。
@@ -59,7 +57,7 @@ python3 .agents/skills/linglong-store/scripts/linglong_store_api.py --category "
 python3 .agents/skills/linglong-store/scripts/linglong_store_api.py <应用名称> --arch arm64
 ```
 
-脚本会自动处理 `arch`、`repoName`、`lang` 等必需参数，默认值为 `x86_64`、`stable`、`zh`。
+脚本会自动处理 `arch`、`repoName`、`lang` 等必填参数，默认值为 `x86_64`、`stable`、`zh`。
 
 **搜索流程：**
 
@@ -88,7 +86,7 @@ python3 .agents/skills/linglong-store/scripts/linglong_store_api.py --detail <ap
 
 详情输出包含：`appId`、名称、版本、架构、分类、开发者、大小、图标、描述、截图列表。
 
-**截图输出规范：**
+**截图展示规范：**
 - 截图必须以 Markdown 图片格式展示：`![截图](URL)`
 - 若无截图，提示"该应用暂无截图"
 
@@ -129,13 +127,13 @@ python3 .agents/skills/linglong-store/scripts/linglong_update_checker.py --actio
 ### 5) 卸载应用
 
 - 使用 `ll-cli uninstall <appid>`（若需，先确认安装列表）。
-- 卸载完成后调用统计上报，字段与 GUI 商店一致。
+- 卸载完成后调用统计上报接口。
 
 参考：`references/telemetry.md`。
 
-### 6) 意见反馈
+### 6) 用户反馈
 
-- 直接使用 Web 反馈接口提交用户内容。
+- 直接使用网络反馈接口提交用户内容。
 
 参考：`references/telemetry.md`。
 
@@ -143,14 +141,14 @@ python3 .agents/skills/linglong-store/scripts/linglong_update_checker.py --actio
 
 - 明确告知正在执行的步骤（搜索、安装、检查更新）。
 - 多选项时引导用户用序号选择，避免模糊确认。
-- 用户每次查找应用后都要主动询问："需不需要我展示一下这个应用的截图？"
+- 用户每次查找应用后都要主动询问：“需不需要我展示一下这个应用的截图？”
 - 失败时给出可执行的下一步（重试、切换架构、减少筛选）。
 
 ## 错误处理
 
 - 搜索无结果：建议更换关键词或移除筛选条件。
 - 多版本/多架构冲突：要求用户明确选择。
-- 安装失败：返回 `ll-cli` 的错误摘要，并提示参考 GUI 商店错误映射逻辑。
+- 安装失败：返回 `ll-cli` 的错误摘要，并告诉用户可能的失败原因和下一步建议。
 - 更新检查失败：提示可直接执行 `ll-cli upgrade` 手动更新。
 - 错误码与提示映射参考：`references/errors.md`。
 

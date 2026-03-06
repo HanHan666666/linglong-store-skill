@@ -4,11 +4,10 @@
 
 Python API 路径：`scripts/linglong_store_api.py`
 
-该脚本对齐 GUI 商店的调用方式：
 
 - 分类默认走 `/visit/getDisCategoryList`。
 - 分类应用列表走 `/visit/getSearchAppList`。
-- 默认带上 `repoName=stable`（与 GUI 默认一致）。
+- 默认带上 `repoName=stable`
 
 ## 常用用法
 
@@ -73,5 +72,5 @@ for app in apps:
 ## 排障提示
 
 - 分类能列出但分类下无结果时，优先确认：
-  - 分类来源是否与 GUI 一致（默认应使用 App 侧分类）。
+  - 分类来源是否与
   - 是否带上 `repoName`（默认 `stable`）。

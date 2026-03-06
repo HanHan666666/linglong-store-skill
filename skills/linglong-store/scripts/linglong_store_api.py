@@ -255,7 +255,6 @@ class LinglongStoreClient:
     def get_app_detail(self, app_id: str, raw: bool = False) -> AppDetail | Dict[str, Any]:
         """获取应用详情，包括截图列表"""
         url = f"{self.base_url}/app/getAppDetail"
-        # 与 GUI 商店保持一致：不传 lang，避免服务端返回空截图列表。
         payload = [{"appId": app_id, "arch": self.arch}]
         response = _run_curl(["-X", "POST", url], data=json.dumps(payload, ensure_ascii=False))
         if raw:
