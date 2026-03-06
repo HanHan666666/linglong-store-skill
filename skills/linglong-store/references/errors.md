@@ -12,7 +12,10 @@
 
 ## 安装
 
-- `ll-cli` 失败：输出错误摘要并提供重试或更换版本/架构建议。
+- `ll-cli` 不存在：先确认用户是否同意通过 `pkexec bash /home/han/linglong-installer/install-linyaps-env.sh` 安装玲珑环境。
+- 环境安装脚本失败：优先根据脚本输出定位是 `pkexec` 授权失败、发行版不支持、仓库/网络异常、包安装失败，还是安装完成后 `ll-cli` 仍不可用。
+- 环境安装后仍无 `ll-cli`：按“包未安装成功 / 命令未进入 PATH / 当前 shell 未刷新环境”三个方向给建议。
+- `ll-cli` 失败：输出错误摘要并提供重试或更换版本/架构建议；不要提示用户额外加 `sudo`，`ll-cli` 自身会处理 `pkexec` 授权。
 - 版本冲突：要求用户指定版本或使用 `--force`。
 - 架构冲突：要求用户确认 `arch`。
 
@@ -72,6 +75,13 @@
 
 | Type | 关键词示例 | 提示 |
 | --- | --- | --- |
+| ll_cli_missing | command not found, ll-cli, not installed | 当前未检测到玲珑命令，需先安装运行环境 |
+| installer_root | root, pkexec, 权限运行, authentication canceled | 安装脚本要求 root 权限，请通过 `pkexec` 重新执行并确认授权弹窗可正常拉起 |
+| installer_unsupported_distro | 不支持的发行版, 不支持的 Ubuntu 版本, 不支持的 Debian 版本, 无法将 | 当前系统或版本不在脚本支持列表内，需要手动安装或更换源 |
+| installer_nixos | NixOS 不支持自动安装 | 需要按脚本提示修改 NixOS 配置手动启用 linyaps |
+| installer_repo | apt update, dnf update, zypper refresh, Release.key, gpg, repo | 仓库添加或刷新失败，优先检查网络、仓库地址和签名密钥 |
+| installer_package | apt install, dnf install, pacman, zypper install | 包安装步骤失败，需检查仓库中是否有对应包以及包管理器状态 |
+| installer_postcheck | 安装后未检测到 ll-cli 命令 | 安装过程结束但命令不可用，需要检查包是否真正安装成功以及 PATH |
 | force_required | ll-cli install, --force | 该版本已安装，需要使用强制安装模式 |
 | network | network, connection, timeout, fetch | 网络连接失败，请检查网络设置 |
 | not_found | not found, no such, does not exist | 应用不存在或版本不可用 |
